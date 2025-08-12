@@ -1,5 +1,6 @@
 import csv
 import os
+import random
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
 from app import models
@@ -19,7 +20,6 @@ def load_csv_data(file_path, required_columns=None):
             reader = csv.DictReader(file)
             for row in reader:
                 if required_columns:
-                    # Check if all required columns exist
                     if all(col in row for col in required_columns):
                         data.append(row)
                 else:
@@ -39,9 +39,10 @@ def create_sample_data():
         
         print("Loading real dataset from CSV files...")
         
-        # 1. Load Distribution Centers
+        # 1. Load Distribution Centers FIRST
         print("\\n1. Loading Distribution Centers...")
         centers_data = load_csv_data("../data/distribution_centers.csv", ["id", "name", "latitude", "longitude"])
+        distribution_center_ids = []
         for row in centers_data:
             center = models.DistributionCenter(
                 id=int(row["id"]),
@@ -50,6 +51,7 @@ def create_sample_data():
                 longitude=float(row["longitude"])
             )
             db.add(center)
+            distribution_center_ids.append(int(row["id"]))
         db.commit()
         
         # 2. Load Users
@@ -84,13 +86,19 @@ def create_sample_data():
             db.add(product)
         db.commit()
         
-        # 4. Load Orders
+        # 4. Load Orders (with random distribution center assignment)
         print("\\n4. Loading Orders...")
         orders_data = load_csv_data("../data/orders.csv")
         for row in orders_data:
+            # Assign random distribution center if not provided
+            distribution_center_id = None
+            if distribution_center_ids:
+                distribution_center_id = random.choice(distribution_center_ids)
+            
             order = models.Order(
                 id=int(row.get("id", 0)),
                 user_id=int(row.get("user_id", 0)),
+                distribution_center_id=distribution_center_id,
                 order_number=row.get("order_number", ""),
                 status=row.get("status", "pending"),
                 total_amount=float(row.get("total_amount", 0)),
@@ -113,13 +121,10 @@ def create_sample_data():
             db.add(item)
         db.commit()
         
-        print("\\n?? MILESTONE 1 COMPLETE!")
-        print("? All CSV files loaded successfully into database")
-        print("? E-commerce Order Viewer backend ready with real data")
-        print("? Ready to test your 3 core features:")
-        print("   1. Search users by criteria")
-        print("   2. View user orders") 
-        print("   3. See order items")
+        print("\\n?? MILESTONE 2 DATABASE READY!")
+        print("? All CSV files loaded successfully with updated schema")
+        print("? Distribution centers linked to orders")
+        print("? E-commerce Order Viewer backend ready with enhanced relationships")
         
     except Exception as e:
         print(f"? Error loading data: {e}")
